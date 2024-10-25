@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Invoice>
+    <Supplier>DAVIDE PAOLILLO</Supplier>
+    <IBANnumber></IBANnumber>
+    <VATnumber></VATnumber>
+    <Client>Amazon EU S.à.rl</Client>
+
+    <InvoiceDetails>
+        <InvoiceNumber>FR41GPOXUAEUI</InvoiceNumber>
+        <InvoiceDate>04 Octobre 2024</InvoiceDate>
+    </InvoiceDetails>
+
+    <AmountDetails>
+        <NetAmount>330,42</NetAmount>
+        <VatAmount></VatAmount>
+        <DueDate>NXIWuSJizkwa5PFtDYSfnEumDRzjITMxXFI</DueDate>
+        <TotalAmount>113.49</TotalAmount>
+    </AmountDetails>
+</Invoice>

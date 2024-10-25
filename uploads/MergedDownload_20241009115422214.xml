@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Invoice>
+    <Supplier>KLANT - LEVERINGSADRES</Supplier>
+    <IBANnumber>Belfius</IBANnumber>
+    <VATnumber></VATnumber>
+    <Client>Baaikensstraat 29</Client>
+
+    <InvoiceDetails>
+        <InvoiceNumber>2404941</InvoiceNumber>
+        <InvoiceDate>18.09.24</InvoiceDate>
+    </InvoiceDetails>
+
+    <AmountDetails>
+        <NetAmount>330,42</NetAmount>
+        <VatAmount></VatAmount>
+        <DueDate>NXIWuSJizkwa5PFtDYSfnEumDRzjITMxXFI</DueDate>
+        <TotalAmount>113.49</TotalAmount>
+    </AmountDetails>
+</Invoice>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Invoice>
+    <Supplier>Profyto BV</Supplier>
+    <IBANnumber>NL72ABNA0453533337</IBANnumber>
+    <VATnumber>NL861952820B01</VATnumber>
+    <Client>CV Homan-Monsma</Client>
+
+    <InvoiceDetails>
+        <InvoiceNumber>978553</InvoiceNumber>
+        <InvoiceDate>2022-08-16</InvoiceDate>
+    </InvoiceDetails>
+
+    <AmountDetails>
+        <NetAmount>1.231,21</NetAmount>
+        <VatAmount>258,55</VatAmount>
+        <DueDate>Betaling binnen 30 dagen netto</DueDate>
+        <TotalAmount>1.489,76</TotalAmount>
+    </AmountDetails>
+    
+    <Currency>US</Currency>
+</Invoice>
