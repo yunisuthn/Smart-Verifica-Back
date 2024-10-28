@@ -67,16 +67,10 @@ function convertXmlToJson(filePath) {
 const getFileById = async (req, res) => {
     try {
         const id = req.params.id
-        const file = await File.findById(req.params.id);
+        const file = await File.findById(id);
 
         if (!req.io) {
             return res.status(500).send('Socket.io instance is not available');
-        }
-
-        if (!file.isLocked) {
-            file.isLocked = true
-            await file.save()
-            req.io.emit('file-locked', { id, isLocked: true })
         }
 
         const xmlJSON = await convertXmlToJson('./uploads/' + file.xml);
@@ -90,6 +84,11 @@ const getFileById = async (req, res) => {
 const getFiles = async (req, res) => {
     try {
         const files = await File.find({ name: { $regex: /\.pdf$/i } })
+        .populate('lockedBy')
+        .populate('validatedBy.v1')
+        .populate('validatedBy.v2')
+        .populate('returnedBy')
+        .sort({ _id: -1 });
         //test socket
 
         res.status(200).json(files)
@@ -102,7 +101,14 @@ const getFiles = async (req, res) => {
 const unlock_file = async (req, res) => {
     try {
         const id = req.params.id;
-        const file = await File.findById(id);
+        const file = await File.findByIdAndUpdate(id, {
+            isLocked: false,
+            lockedBy: null
+        }, { new: true })
+        .populate('lockedBy')
+        .populate('validatedBy.v1')
+        .populate('validatedBy.v2')
+        .populate('returnedBy');
 
         if (!file) {
             return res.status(404).json({ message: 'File not found' });
@@ -112,13 +118,8 @@ const unlock_file = async (req, res) => {
             return res.status(500).send('Socket.io instance is not available');
         }
 
-        // Si le fichier est verrouillé, le déverrouiller
-        file.isLocked = false;
-        file.lockedBy = null;
-        await file.save();
-
         // Émettre un événement via Socket.io pour notifier que le fichier est déverrouillé
-        req.io.emit('file-unlocked', { id, isLocked: false, lockedBy: null });
+        req.io.emit('document-lock/unlock', { id, ...file._doc });
 
         res.status(200).json({ message: 'File unlocked successfully', file });
     } catch (error) {
@@ -147,8 +148,10 @@ const lock_file = async (req, res) => {
             return res.status(500).send('Socket.io instance is not available');
         }
 
+        console.log('called')
+
         // Émettre un événement via Socket.io pour notifier que le fichier est déverrouillé
-        req.io.emit('file-locked', { id, isLocked: true, lockedBy: file.lockedBy });
+        req.io.emit('document-lock/unlock', { id, ...file._doc });
 
         res.status(200).json({ message: 'File unlocked successfully', file });
     } catch (error) {
@@ -161,14 +164,16 @@ const lock_file = async (req, res) => {
 const getPrevalidations = async (req, res) => {
     try {
         const files = await File.find({
-            'validation.v1': false,
+            'validation.v1': false, 
+            'validation.v2': false, 
             status: { $nin: ['returned', 'validated'] },
-            $expr: { $lt: [{ $size: "$versions" }, 2] }
+            // $expr: { $lt: [{ $size: "$versions" }, 2] }
         })
         .populate('lockedBy')
         .populate('validatedBy.v1')
         .populate('validatedBy.v2')
-        .populate('returnedBy');
+        .populate('returnedBy')
+        .sort({ _id: -1 });
 
         res.status(200).json(files)
     } catch (error) {
@@ -180,13 +185,12 @@ const getPrevalidations = async (req, res) => {
 // Method to get prevalidation document: (V1)
 const getV2Validations = async (req, res) => {
     try {
-        const files = await File.find({ 'validation.v2': false, 'validation.v1': true, versions: { $size: 1 } })
+        const files = await File.find({ 'validation.v2': false, 'validation.v1': true })
         .populate('lockedBy')
         .populate('validatedBy.v1')
         .populate('validatedBy.v2')
-        .populate('returnedBy');
-
-        console.log(files)
+        .populate('returnedBy')
+        .sort({ _id: -1 });
 
         res.status(200).json(files)
     } catch (error) {
@@ -202,7 +206,8 @@ const getReturnedValidations = async (req, res) => {
         .populate('lockedBy')
         .populate('validatedBy.v1')
         .populate('validatedBy.v2')
-        .populate('returnedBy');
+        .populate('returnedBy')
+        .sort({ _id: -1 });
 
         res.status(200).json(files)
     } catch (error) {
@@ -215,7 +220,12 @@ const getReturnedValidations = async (req, res) => {
 // get validated validations
 const getValidatedValidations = async (req, res) => {
     try {
-        const files = await File.find({ 'validation.v2': true, 'validation.v1': true, status: 'validated' });
+        const files = await File.find({ 'validation.v2': true, 'validation.v1': true, status: 'validated' })
+        .populate('lockedBy')
+        .populate('validatedBy.v1')
+        .populate('validatedBy.v2')
+        .populate('returnedBy')
+        .sort({ _id: -1 });
 
         res.status(200).json(files)
     } catch (error) {
@@ -284,5 +294,105 @@ const generateExcel = async (req, res) => {
 }
 
 
-module.exports = {uploadFile, getFileById, getFiles, unlock_file, lock_file, getPrevalidations, 
-    getV2Validations, getReturnedValidations, getValidatedValidations , generateExcel}
+const getDocumentCounts = async (req, res) => {
+    try {
+        
+        const results = await File.aggregate([
+            {
+                $facet: {
+                    prevalidationCount: [
+                        { 
+                            $match: { 
+                                "validation.v1": false,
+                                "validation.v2": false,
+                                status: 'progress',
+                            }
+                        },
+                        { $count: "count" }
+                    ],
+                    returnedCount: [
+                        { 
+                            $match: { 
+                                status: 'returned'
+                            }
+                        },
+                        { $count: "count" }
+                    ],
+                    validationV2Count: [
+                        { 
+                            $match: { 
+                                "validation.v1": true,
+                                "validation.v2": false,
+                                status: 'progress',
+                            }
+                        },
+                        { $count: "count" }
+                    ],
+                    validatedCount: [
+                        { 
+                            $match: { 
+                                "validation.v1": true,
+                                "validation.v2": true,
+                                status: 'validated',
+                            }
+                        },
+                        { $count: "count" }
+                    ]
+                }
+            }
+        ]);
+        res.json(results[0]);
+    } catch (error) {
+        console.log(error);
+        res.json(null)
+    }
+
+}
+
+
+const uploadDocuments = async (req, res) => {
+    console.log('uploading document...')
+    try {
+        const { pdfFile, xmlFile } = req.files;
+        if (pdfFile && xmlFile) {
+
+            console.log({
+                pdf: pdfFile[0].filename,
+                xml: xmlFile[0].filename,})
+
+            // insert file
+            const createdDocument = await File.create({
+                name: pdfFile[0].filename,
+                xml: xmlFile[0].filename,
+            });
+
+            // get document with populated fields
+            const newDocument = await File.findById(createdDocument._id)
+                .populate('lockedBy')
+                .populate('validatedBy.v1')
+                .populate('validatedBy.v2')
+                .populate('returnedBy');
+
+            // send socket
+            if (req.io) req.io.emit('document-incoming', newDocument);
+
+            res.status(200).json({
+                message: 'Files uploaded successfully!',
+                files: {
+                    pdf: pdfFile[0].path,
+                    xml: xmlFile[0].path,
+                },
+            });
+        } else {
+            res.status(400).json({ message: 'Please upload both PDF and XML files.' });
+        }
+    } catch(error) {
+        res.status(500).json({
+            message: 'Failed to uploade files.'
+        })
+    }
+}
+
+module.exports = {uploadFile, getFileById, getFiles, unlock_file, lock_file, getPrevalidations,
+    uploadDocuments,
+    getV2Validations, getReturnedValidations, getValidatedValidations , generateExcel, getDocumentCounts}

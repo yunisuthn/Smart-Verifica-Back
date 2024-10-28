@@ -71,7 +71,11 @@ const fileSchema = new mongoose.Schema({
         type: String,
         default: ''
     }
-}, { timestamps: true });
+}, {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+});
 
 // Pre-save hook to update xml field before saving
 fileSchema.pre('save', function (next) {
@@ -80,6 +84,15 @@ fileSchema.pre('save', function (next) {
         this.xml = this.name.replace(/\.[^/.]+$/, ".xml");
     }
     next();
+});
+
+fileSchema.virtual('workflowStatus').get(function() {
+    if (this.status === 'validated') {
+        return 'Worked on';
+    }
+    if (this.isLocked) return 'In progress';
+    return 'Pending Assignement';
+    
 });
 
 module.exports = mongoose.model('File', fileSchema)

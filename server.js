@@ -30,7 +30,7 @@ const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
     // origin: "http://localhost:3000",  // Remplace par l'URL de ton client
-    origin: "https://ia-validation.vercel.app",
+    origin: process.env.FRONTEND_URL,
     methods: ["GET", "POST"]
   }
 });
@@ -41,7 +41,7 @@ app.use((req, res, next)=>{
 })
 
 app.use((req, res, next) => {
-  const unprotectedRoutes = ['/login', '/forgot-password', '/generateFile'];
+  const unprotectedRoutes = ['/login', '/forgot-password', '/generateFile', '/upload', '/upload-documents'];
   const resetPasswordRegex = /^\/reset-password\/[^\/]+$/; // Vérifie si l'URL correspond à /reset-password/something
 
   if (unprotectedRoutes.includes(req.path) || resetPasswordRegex.test(req.path)) {
